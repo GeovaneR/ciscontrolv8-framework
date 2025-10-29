@@ -1,0 +1,28 @@
+.cards .circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 15px;
+}
+.cards .circle h1 {
+  font-size: 30px;
+  font-weight: 500;
+  color: #f7f7f7;
+}
+.cards .title {
+  text-align: right;
+}
+.cards .circle p {
+  color: #989eb3;
+  margin-top: 10px;
+  font-size: 17px;
+}
+.light .circle h1,
+.light .circle p {
+  color: #000;
+}
+.cards.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* só duas colunas */
+
+}

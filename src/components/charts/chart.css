@@ -1,0 +1,13 @@
+.charts {
+  margin-top: 40px;
+}
+.apexcharts-toolbar {
+  display: none !important;
+}
+.apexcharts-legend {
+  margin-top: 10px !important;
+}
+.charts.grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* só duas colunas */
+}

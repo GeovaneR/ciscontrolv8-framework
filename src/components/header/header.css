@@ -1,0 +1,137 @@
+/*----------------head------------------*/
+.head {
+  padding: 10px 0;
+  color: #fff;
+}
+.light .iconHead {
+  color: #323a46;
+}
+.iconHead {
+  margin-left: 20px;
+  margin-right: 20px;
+}
+.head {
+  margin-right: 10px;
+}
+.iconHead {
+  margin-left: 10px;
+  margin-right: 0;
+}
+
+.iconHead {
+  margin: 0;
+}
+input::placeholder {
+  color: #fff;
+}
+.light input::placeholder {
+  color: #323a46;
+}
+/*----------------head------------------*/
+/*----------------header------------------*/
+header {
+  background: #353d4a;
+  padding: 15px 0;
+  position: relative;
+}
+.light header {
+  background: #b53340;
+}
+.logo{
+    display: flex;
+    height: 40px;
+    width: 40px;
+}
+.link {
+  display: flex;
+  align-items: center;
+}
+header ul li {
+  display: inline-block;
+  margin-right: 30px;
+  display: flex;
+  align-items: center;
+}
+header ul li a {
+  color: #6e7488;
+  font-size: 17px;
+  font-weight: 500;
+  transition: 0.5s;
+}
+
+.light header ul li a{
+  color: #e6e6e6;
+}
+
+header ul li:hover .navIcon,
+header ul li .navIcon.active,
+header ul li a.active,
+header ul li a:hover {
+  color: #71b6f9;
+}
+.light header ul li:hover .navIcon,
+.light header ul li .navIcon.active,
+.light header ul li a.active,
+.light header ul li a:hover {
+  color: #ffffff;
+}
+.navIcon {
+  margin-right: 10px;
+  color: #6e7488;
+  cursor: pointer;
+  font-size: 16px !important;
+  font-weight: 600;
+}
+.light .navIcon {
+  color: #ffffff59;
+}
+.toggle {
+  display: none;
+  color: #fff;
+}
+.light .header {
+  background: #fff;
+}
+.light .toggle {
+  color: #000;
+}
+
+/*----------------header------------------*/
+@media only screen and (max-width: 768px) {
+  .link {
+    display: none;
+  }
+  .search {
+    display: none;
+  }
+  .navMenu-list {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: 0;
+    left: 0;
+    background-color: #323a46;
+    width: 50%;
+    height: 100vh;
+    z-index: 9999;
+    box-shadow: 4px 7px 5px 0px rgba(0, 0, 0, 0.2);
+  }
+  .light .navMenu-list {
+    background-color: #fff;
+    box-shadow: 4px 7px 5px 0px rgba(0, 0, 0, 0.2);
+  }
+  header ul li {
+    align-items: left;
+    margin-top: 30px;
+    padding: 0 50px;
+  }
+  .toggle {
+    display: block;
+    position: absolute;
+    top: -90px;
+    bottom: 0;
+    right: 20px;
+    margin: auto;
+    cursor: pointer;
+  }
+}
