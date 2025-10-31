@@ -1,6 +1,5 @@
 import React from "react"
-import Cards from "../cards/Cards"
-import Charts from "../charts/Charts"
+import Cascade from "../cascade/Cascade"
 
 const Control = () => {
   return (
@@ -10,7 +9,7 @@ const Control = () => {
           <div className='heading flexSB'>
             <h3>Árvore dos Controles</h3>
           </div>
-          <Cards />
+          <Cascade />
         </div>
       </section>
     </>

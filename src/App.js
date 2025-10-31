@@ -6,6 +6,7 @@ import Footer from "./components/footer/Footer";
 import Header from "./components/header/Header";
 import Home from "./components/home/Home";
 import Control from "./components/control/Control";
+import Detail from "./components/control/Detail";
 
 function App() {
   const getMode = () => {
@@ -31,6 +32,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/control" element={<Control />} />
+          <Route path="/control/detail" element={<Detail />} />
         </Routes>
 
         <Footer />
