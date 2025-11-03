@@ -3,60 +3,59 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Box, Typography, Button } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { cisControls } from "../../data/ciscontrols";
-import FormControl from '@mui/material/FormControl';
+import FormControl from "@mui/material/FormControl";
 import BasicSelect from "../../buttons/select";
-import dayjs from 'dayjs';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import dayjs from "dayjs";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import Texteditor from "../../texteditor/Texteditor";
 
-
 const Detail = () => {
-
   const navigate = useNavigate();
   const query = new URLSearchParams(useLocation().search);
   const id = query.get("id");
-  const topic = cisControls.flatMap(c => c.topics).find(t => t.id === id);
+  const topic = cisControls.flatMap((c) => c.topics).find((t) => t.id === id);
 
-
-  // Estados para cada campo
-  const [status, setStatus] = React.useState("");
-  const [agendamento, setAgendamento] = React.useState("");
+  const [status, setStatus] = useState("");
+  const [agendamento, setAgendamento] = useState("");
   const [data, setData] = useState(dayjs());
   const [descricao, setDescricao] = useState("");
+  const [loaded, setLoaded] = useState(false);
 
-
-  
-  // ALTERAR AQUI SE FOR SALVAR EM API
-  /*const handleSave = async () => {
-  await fetch(`/api/topics/${id}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ status, agendamento, data, descricao }),
-  });
-  alert("Salvo com sucesso!");
-};*/
-
-  // Carrgar dados salvos no localStorage ao abrir cada tópico
+  // Carregar dados do localStorage
   useEffect(() => {
     const saved = JSON.parse(localStorage.getItem(`topico_${id}`));
     if (saved) {
-      setStatus(saved.status || '');
-      setAgendamento(saved.agendamento || '');
+      setStatus(saved.status || "");
+      setAgendamento(saved.agendamento || "");
       setData(saved.data ? dayjs(saved.data) : dayjs());
-      setDescricao(saved.descricao || '');
+      setDescricao(saved.descricao || "");
     }
-
+    setLoaded(true);
   }, [id]);
 
-  // Função para salvar os dados no localStorage
+
+  // Salvar automaticamente no localStorage após carregado
+  useEffect(() => {
+    if (!loaded) return;
+    const dados = {
+      id,
+      status,
+      agendamento,
+      data: data && data.isValid() ? data.toISOString() : null,
+      descricao,
+    };
+    localStorage.setItem(`topico_${id}`, JSON.stringify(dados));
+  }, [status, agendamento, data, descricao, id, loaded]);
+
+  // Função de salvar manualmente
   const handleSave = () => {
     const dados = {
       id,
       status,
       agendamento,
-      data: data.format('DD/MM/YYYY'),
+      data: data && data.isValid() ? data.toISOString() : null,
       descricao,
     };
     localStorage.setItem(`topico_${id}`, JSON.stringify(dados));
@@ -76,34 +75,39 @@ const Detail = () => {
       <Button
         startIcon={<ArrowBackIcon />}
         onClick={() => navigate(-1)}
-        sx={{ color: "primary.main", mb: 3 }}
       >
         Voltar
       </Button>
+
       <Box sx={{ mb: 2 }}>
-        <FormControl sx={{ display: 'flex', flexDirection: 'row', gap: 2 }}>
+        <FormControl sx={{ display: "flex", flexDirection: "row", gap: 2 }}>
           <BasicSelect
             minWidth={120}
             label="Status"
             items={["N/A", "Concluído", "Pendente", "Em Andamento"]}
+            value={status}
+            onChange={(e) => setStatus(e.target?.value ?? e)}
           />
 
           <BasicSelect
             minWidth={150}
             label="Agendamento"
             items={["Mensal", "Trimestral", "Semestral", "Anual"]}
+            value={agendamento}
+            onChange={(e) => setAgendamento(e.target?.value ?? e)}
           />
 
           <LocalizationProvider dateAdapter={AdapterDayjs}>
             <DatePicker
               label="Data"
+              format="DD/MM/YYYY"
               value={data}
               onChange={(newValue) => setData(newValue)}
             />
           </LocalizationProvider>
-
         </FormControl>
       </Box>
+
       <Typography variant="h5" sx={{ fontWeight: "bold", mb: 1 }}>
         {topic.id} - {topic.name}
       </Typography>
@@ -111,6 +115,7 @@ const Detail = () => {
       <Typography variant="body1" sx={{ color: "text.secondary", mb: 2 }}>
         {topic.description}
       </Typography>
+
       <Box
         sx={{
           borderRadius: 2,
@@ -120,6 +125,7 @@ const Detail = () => {
         }}
         dangerouslySetInnerHTML={{ __html: topic.details }}
       />
+
       <Box>
         <Texteditor descricao={descricao} setDescricao={setDescricao} />
         <Button
@@ -132,7 +138,6 @@ const Detail = () => {
         </Button>
       </Box>
     </Box>
-
   );
 };
 
