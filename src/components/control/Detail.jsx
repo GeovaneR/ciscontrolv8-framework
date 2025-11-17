@@ -4,7 +4,7 @@ import { Box, Typography, Button } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { cisControls } from "../../data/ciscontrols";
 import FormControl from "@mui/material/FormControl";
-import BasicSelect from "../../buttons/select";
+import BasicSelect from '../buttons/select.jsx';
 import dayjs from "dayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
