@@ -15,8 +15,33 @@ const Detail = () => {
   const navigate = useNavigate();
   const query = new URLSearchParams(useLocation().search);
   const id = query.get("id");
-  const topic = cisControls.flatMap((c) => c.topics).find((t) => t.id === id);
+  const type = query.get("type"); // "main" para controle principal, undefined para sub-tópico
+  
+  // Função para encontrar o tópico (sub-controle) ou controle principal
+  const findItem = () => {
+    if (type === "main") {
+      // Buscar controle principal
+      return cisControls.controls.find((control) => control.id === id);
+    } else {
+      // Buscar sub-tópico (tópico)
+      for (const control of cisControls.controls) {
+        if (control.topics) {
+          const topic = control.topics.find((t) => t.id === id);
+          if (topic) {
+            return {
+              ...topic,
+              mainControl: control // Inclui referência ao controle principal
+            };
+          }
+        }
+      }
+    }
+    return null;
+  };
 
+  const item = findItem();
+  const isMainControl = type === "main";
+  
   const [status, setStatus] = useState("");
   const [agendamento, setAgendamento] = useState("");
   const [data, setData] = useState(dayjs());
@@ -25,7 +50,8 @@ const Detail = () => {
 
   // Carregar dados do localStorage
   useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem(`topico_${id}`));
+    const storageKey = isMainControl ? `controle_${id}` : `topico_${id}`;
+    const saved = JSON.parse(localStorage.getItem(storageKey));
     if (saved) {
       setStatus(saved.status || "");
       setAgendamento(saved.agendamento || "");
@@ -33,39 +59,44 @@ const Detail = () => {
       setDescricao(saved.descricao || "");
     }
     setLoaded(true);
-  }, [id]);
-
+  }, [id, isMainControl]);
 
   // Salvar automaticamente no localStorage após carregado
   useEffect(() => {
     if (!loaded) return;
+    const storageKey = isMainControl ? `controle_${id}` : `topico_${id}`;
     const dados = {
       id,
+      isMainControl,
       status,
       agendamento,
       data: data && data.isValid() ? data.toISOString() : null,
       descricao,
     };
-    localStorage.setItem(`topico_${id}`, JSON.stringify(dados));
-  }, [status, agendamento, data, descricao, id, loaded]);
+    localStorage.setItem(storageKey, JSON.stringify(dados));
+  }, [status, agendamento, data, descricao, id, loaded, isMainControl]);
 
   // Função de salvar manualmente
   const handleSave = () => {
+    const storageKey = isMainControl ? `controle_${id}` : `topico_${id}`;
     const dados = {
       id,
+      isMainControl,
       status,
       agendamento,
       data: data && data.isValid() ? data.toISOString() : null,
       descricao,
     };
-    localStorage.setItem(`topico_${id}`, JSON.stringify(dados));
+    localStorage.setItem(storageKey, JSON.stringify(dados));
     alert("✅ Dados salvos com sucesso!");
   };
 
-  if (!topic) {
+  if (!item) {
     return (
       <Box sx={{ p: 4 }}>
-        <Typography color="error">Tópico não encontrado!</Typography>
+        <Typography color="error">
+          {isMainControl ? "Controle" : "Tópico"} não encontrado!
+        </Typography>
       </Box>
     );
   }
@@ -109,24 +140,71 @@ const Detail = () => {
       </Box>
 
       <Typography variant="h5" sx={{ fontWeight: "bold", mb: 1 }}>
-        {topic.id} - {topic.name}
+        {item.id} - {item.title || item.name}
       </Typography>
+
+      {!isMainControl && item.mainControl && (
+        <Typography variant="subtitle1" sx={{ color: "text.secondary", mb: 1 }}>
+          Controle principal: {item.mainControl.id} - {item.mainControl.title}
+        </Typography>
+      )}
 
       <Typography variant="body1" sx={{ color: "text.secondary", mb: 2 }}>
-        {topic.description}
+        {item.description}
       </Typography>
 
-      <Box
-        sx={{
-          borderRadius: 2,
-          boxShadow: 2,
-          p: 3,
-          backgroundColor: "#fafafa",
-        }}
-        dangerouslySetInnerHTML={{ __html: topic.details }}
-      />
+      {item.details && (
+        <Box
+          sx={{
+            borderRadius: 2,
+            boxShadow: 2,
+            p: 3,
+            backgroundColor: "#fafafa",
+            mb: 3,
+          }}
+          dangerouslySetInnerHTML={{ __html: item.details }}
+        />
+      )}
+
+      {/* Mostrar sub-tópicos se for um controle principal */}
+      {isMainControl && item.topics && item.topics.length > 0 && (
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2 }}>
+            Sub-tópicos ({item.topics.length})
+          </Typography>
+          {item.topics.map((topic) => (
+            <Box
+              key={topic.id}
+              sx={{
+                p: 2,
+                mb: 1,
+                border: "1px solid #e0e0e0",
+                borderRadius: 1,
+                backgroundColor: "#f9f9f9",
+              }}
+            >
+              <Typography variant="subtitle1" fontWeight="medium">
+                {topic.id} - {topic.title}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {topic.description}
+              </Typography>
+              <Button
+                size="small"
+                onClick={() => navigate(`/control/detail?id=${topic.id}`)}
+                sx={{ mt: 1 }}
+              >
+                Ver detalhes
+              </Button>
+            </Box>
+          ))}
+        </Box>
+      )}
 
       <Box>
+        <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2 }}>
+          Anotações
+        </Typography>
         <Texteditor descricao={descricao} setDescricao={setDescricao} />
         <Button
           variant="contained"
