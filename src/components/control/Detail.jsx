@@ -1,36 +1,55 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Box, Typography, Button } from "@mui/material";
+import {
+  Box,
+  Typography,
+  Button,
+  FormControl,
+  IconButton,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  Paper,
+  Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
+} from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import AttachFileIcon from "@mui/icons-material/AttachFile";
+import DeleteIcon from "@mui/icons-material/Delete";
+import DownloadIcon from "@mui/icons-material/Download";
+import HistoryIcon from "@mui/icons-material/History";
+import DescriptionIcon from "@mui/icons-material/Description";
 import { cisControls } from "../../data/ciscontrols";
-import FormControl from "@mui/material/FormControl";
 import BasicSelect from '../buttons/select.jsx';
 import dayjs from "dayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import Texteditor from "../../texteditor/Texteditor";
+import { v4 as uuidv4 } from "uuid";
 
 const Detail = () => {
   const navigate = useNavigate();
   const query = new URLSearchParams(useLocation().search);
   const id = query.get("id");
-  const type = query.get("type"); // "main" para controle principal, undefined para sub-tópico
-  
-  // Função para encontrar o tópico (sub-controle) ou controle principal
+  const type = query.get("type");
+
+  // Função para encontrar o tópico ou controle principal
   const findItem = () => {
     if (type === "main") {
-      // Buscar controle principal
       return cisControls.controls.find((control) => control.id === id);
     } else {
-      // Buscar sub-tópico (tópico)
       for (const control of cisControls.controls) {
         if (control.topics) {
           const topic = control.topics.find((t) => t.id === id);
           if (topic) {
             return {
               ...topic,
-              mainControl: control // Inclui referência ao controle principal
+              mainControl: control
             };
           }
         }
@@ -41,12 +60,26 @@ const Detail = () => {
 
   const item = findItem();
   const isMainControl = type === "main";
-  
+
+  // Estados principais
   const [status, setStatus] = useState("");
   const [agendamento, setAgendamento] = useState("");
   const [data, setData] = useState(dayjs());
   const [descricao, setDescricao] = useState("");
   const [loaded, setLoaded] = useState(false);
+
+  // Estados para arquivos
+  const [arquivos, setArquivos] = useState([]);
+  const [selectedFile, setSelectedFile] = useState(null);
+
+  // Estados para histórico
+  const [historico, setHistorico] = useState([]);
+  const [showHistorico, setShowHistorico] = useState(false);
+
+  // Função para formatar data
+  const formatarData = (dataStr) => {
+    return dayjs(dataStr).format("DD/MM/YYYY HH:mm:ss");
+  };
 
   // Carregar dados do localStorage
   useEffect(() => {
@@ -57,24 +90,139 @@ const Detail = () => {
       setAgendamento(saved.agendamento || "");
       setData(saved.data ? dayjs(saved.data) : dayjs());
       setDescricao(saved.descricao || "");
+      setArquivos(saved.arquivos || []);
+      setHistorico(saved.historico || []);
     }
     setLoaded(true);
   }, [id, isMainControl]);
 
-  // Salvar automaticamente no localStorage após carregado
+  // Salvar automaticamente no localStorage
   useEffect(() => {
     if (!loaded) return;
+
     const storageKey = isMainControl ? `controle_${id}` : `topico_${id}`;
-    const dados = {
-      id,
-      isMainControl,
+
+    // Verificar se houve mudanças significativas para registrar no histórico
+    const currentData = {
       status,
       agendamento,
       data: data && data.isValid() ? data.toISOString() : null,
-      descricao,
+      descricao
     };
+
+    const saved = JSON.parse(localStorage.getItem(storageKey));
+    const previousData = saved ? {
+      status: saved.status || "",
+      agendamento: saved.agendamento || "",
+      data: saved.data || null,
+      descricao: saved.descricao || ""
+    } : null;
+
+    // Se houve mudanças, adicionar ao histórico
+    if (previousData && JSON.stringify(currentData) !== JSON.stringify(previousData)) {
+      const novaEntrada = {
+        id: uuidv4(),
+        timestamp: new Date().toISOString(),
+        usuario: "Usuário Atual", // Você pode integrar com sistema de autenticação
+        alteracoes: [],
+        dadosAntigos: previousData,
+        dadosNovos: currentData
+      };
+
+      // Detectar quais campos foram alterados
+      if (previousData.status !== currentData.status) {
+        novaEntrada.alteracoes.push(`Status alterado de "${previousData.status}" para "${currentData.status}"`);
+      }
+      if (previousData.agendamento !== currentData.agendamento) {
+        novaEntrada.alteracoes.push(`Agendamento alterado de "${previousData.agendamento}" para "${currentData.agendamento}"`);
+      }
+      if (previousData.descricao !== currentData.descricao) {
+        novaEntrada.alteracoes.push("Descrição/anotações alteradas");
+      }
+
+      // Adicionar ao histórico
+      setHistorico(prev => [novaEntrada, ...prev.slice(0, 49)]); // Limitar a 50 entradas
+    }
+
+    const dados = {
+      id,
+      isMainControl,
+      ...currentData,
+      arquivos,
+      historico: historico.slice(0, 50) // Limitar histórico salvo
+    };
+
     localStorage.setItem(storageKey, JSON.stringify(dados));
-  }, [status, agendamento, data, descricao, id, loaded, isMainControl]);
+  }, [status, agendamento, data, descricao, id, loaded, isMainControl, arquivos, historico]);
+
+  // Manipulação de arquivos
+  const handleFileSelect = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setSelectedFile(file);
+    }
+  };
+
+  const handleFileUpload = () => {
+    if (!selectedFile) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const novoArquivo = {
+        id: uuidv4(),
+        nome: selectedFile.name,
+        tamanho: selectedFile.size,
+        tipo: selectedFile.type,
+        dataUpload: new Date().toISOString(),
+        usuario: "Usuário Atual",
+        base64: reader.result.split(',')[1] // Salva em base64
+      };
+
+      setArquivos(prev => [...prev, novoArquivo]);
+
+      // Registrar no histórico
+      const novaEntrada = {
+        id: uuidv4(),
+        timestamp: new Date().toISOString(),
+        usuario: "Usuário Atual",
+        alteracoes: [`Arquivo "${selectedFile.name}" adicionado`]
+      };
+
+      setHistorico(prev => [novaEntrada, ...prev]);
+      setSelectedFile(null);
+
+      // Limpar input de arquivo
+      document.getElementById('file-upload').value = '';
+    };
+
+    reader.readAsDataURL(selectedFile);
+  };
+
+  const handleFileDelete = (arquivoId) => {
+    const arquivo = arquivos.find(a => a.id === arquivoId);
+    if (arquivo) {
+      setArquivos(prev => prev.filter(a => a.id !== arquivoId));
+
+      // Registrar no histórico
+      const novaEntrada = {
+        id: uuidv4(),
+        timestamp: new Date().toISOString(),
+        usuario: "Usuário Atual",
+        alteracoes: [`Arquivo "${arquivo.nome}" removido`]
+      };
+
+      setHistorico(prev => [novaEntrada, ...prev]);
+    }
+  };
+
+  const handleFileDownload = (arquivo) => {
+    const link = document.createElement('a');
+    link.href = `data:${arquivo.tipo};base64,${arquivo.base64}`;
+    link.download = arquivo.nome;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   // Função de salvar manualmente
   const handleSave = () => {
@@ -86,8 +234,20 @@ const Detail = () => {
       agendamento,
       data: data && data.isValid() ? data.toISOString() : null,
       descricao,
+      arquivos,
+      historico
     };
     localStorage.setItem(storageKey, JSON.stringify(dados));
+
+    // Registrar ação no histórico
+    const novaEntrada = {
+      id: uuidv4(),
+      timestamp: new Date().toISOString(),
+      usuario: "Usuário Atual",
+      alteracoes: ["Salvamento manual realizado"]
+    };
+
+    setHistorico(prev => [novaEntrada, ...prev]);
     alert("✅ Dados salvos com sucesso!");
   };
 
@@ -103,15 +263,34 @@ const Detail = () => {
 
   return (
     <Box sx={{ p: 4 }}>
-      <Button
-        startIcon={<ArrowBackIcon />}
-        onClick={() => navigate(-1)}
-      >
-        Voltar
-      </Button>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Button
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate(-1)}
+        >
+          Voltar
+        </Button>
+
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button
+            startIcon={<HistoryIcon />}
+            onClick={() => setShowHistorico(true)}
+            variant="outlined"
+          >
+            Histórico ({historico.length})
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleSave}
+          >
+            Salvar Alterações
+          </Button>
+        </Box>
+      </Box>
 
       <Box sx={{ mb: 2 }}>
-        <FormControl sx={{ display: "flex", flexDirection: "row", gap: 2 }}>
+        <FormControl sx={{ display: "flex", flexDirection: "row", gap: 2, flexWrap: 'wrap' }}>
           <BasicSelect
             minWidth={120}
             label="Status"
@@ -200,21 +379,161 @@ const Detail = () => {
           ))}
         </Box>
       )}
-
-      <Box>
+      {/* Seção de Anotações */}
+      <Box sx={{ mb: 4 }}>
         <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2 }}>
           Anotações
         </Typography>
         <Texteditor descricao={descricao} setDescricao={setDescricao} />
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleSave}
-          sx={{ mt: 3 }}
-        >
-          Salvar Alterações
-        </Button>
       </Box>
+
+      {/* Seção de Upload de Arquivos */}
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2 }}>
+          Arquivos Anexados
+        </Typography>
+
+        <Paper sx={{ p: 2, mb: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 2 }}>
+            <Button
+              variant="outlined"
+              component="label"
+              startIcon={<AttachFileIcon />}
+            >
+              Selecionar Arquivo
+              <input
+                id="file-upload"
+                type="file"
+                hidden
+                onChange={handleFileSelect}
+              />
+            </Button>
+
+            {selectedFile && (
+              <Chip
+                label={`${selectedFile.name} (${(selectedFile.size / 1024).toFixed(2)} KB)`}
+                onDelete={() => setSelectedFile(null)}
+              />
+            )}
+
+            <Button
+              variant="contained"
+              onClick={handleFileUpload}
+              disabled={!selectedFile}
+            >
+              Anexar Arquivo
+            </Button>
+          </Box>
+
+          {arquivos.length > 0 ? (
+            <List>
+              {arquivos.map((arquivo) => (
+                <ListItem
+                  key={arquivo.id}
+                  secondaryAction={
+                    <Box>
+                      <IconButton
+                        edge="end"
+                        onClick={() => handleFileDownload(arquivo)}
+                        title="Download"
+                      >
+                        <DownloadIcon />
+                      </IconButton>
+                      <IconButton
+                        edge="end"
+                        onClick={() => handleFileDelete(arquivo.id)}
+                        title="Excluir"
+                        sx={{ ml: 1 }}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </Box>
+                  }
+                >
+                  <ListItemIcon>
+                    <DescriptionIcon />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={arquivo.nome}
+                    secondary={`${(arquivo.tamanho / 1024).toFixed(2)} KB - ${formatarData(arquivo.dataUpload)}`}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          ) : (
+            <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+              Nenhum arquivo anexado ainda.
+            </Typography>
+          )}
+        </Paper>
+      </Box>
+
+
+      {/* Dialog do Histórico */}
+      <Dialog
+        open={showHistorico}
+        onClose={() => setShowHistorico(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <HistoryIcon />
+            Histórico de Modificações
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {historico.length > 0 ? (
+            <List>
+              {historico.map((entry, index) => (
+                <ListItem key={entry.id} alignItems="flex-start">
+                  <ListItemIcon>
+                    <Chip
+                      label={index + 1}
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                    />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={
+                      <Typography variant="subtitle2" color="primary">
+                        {formatarData(entry.timestamp)}
+                      </Typography>
+                    }
+                    secondary={
+                      <Box sx={{ mt: 0.5 }}>
+                        <Typography variant="body2" color="text.primary">
+                          <strong>Usuário:</strong> {entry.usuario}
+                        </Typography>
+                        {entry.alteracoes && entry.alteracoes.length > 0 && (
+                          <Box sx={{ mt: 1 }}>
+                            <Typography variant="body2" color="text.primary" fontWeight="bold">
+                              Alterações:
+                            </Typography>
+                            {entry.alteracoes.map((alteracao, idx) => (
+                              <Typography key={idx} variant="body2" color="text.secondary">
+                                • {alteracao}
+                              </Typography>
+                            ))}
+                          </Box>
+                        )}
+                      </Box>
+                    }
+                  />
+                </ListItem>
+              ))}
+            </List>
+          ) : (
+            <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', textAlign: 'center', p: 3 }}>
+              Nenhum registro no histórico ainda.
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowHistorico(false)}>Fechar</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
