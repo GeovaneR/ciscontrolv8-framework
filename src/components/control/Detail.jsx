@@ -80,7 +80,7 @@ const Detail = () => {
   const formatarData = (dataStr) => {
     return dayjs(dataStr).format("DD/MM/YYYY HH:mm:ss");
   };
-
+  
   // Carregar dados do localStorage
   useEffect(() => {
     const storageKey = isMainControl ? `controle_${id}` : `topico_${id}`;
@@ -322,11 +322,6 @@ const Detail = () => {
         {item.id} - {item.title || item.name}
       </Typography>
 
-      {!isMainControl && item.mainControl && (
-        <Typography variant="subtitle1" sx={{ color: "text.secondary", mb: 1 }}>
-          Controle principal: {item.mainControl.id} - {item.mainControl.title}
-        </Typography>
-      )}
 
       <Typography variant="body1" sx={{ color: "text.secondary", mb: 2 }}>
         {item.description}

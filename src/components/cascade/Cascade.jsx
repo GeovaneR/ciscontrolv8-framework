@@ -10,8 +10,6 @@ import Link from '@mui/material/Link';
 import { useNavigate } from 'react-router-dom';
 import { cisControls } from "../../data/ciscontrols";
 
-const paginationModel = { page: 0, pageSize: 5 };
-
 export default function Cascade() {
   const [expandedRows, setExpandedRows] = useState([]);
   const navigate = useNavigate();
@@ -31,11 +29,17 @@ export default function Cascade() {
     }
   };
 
+  // Função para truncar texto no primeiro ponto
+  const truncateAtFirstPeriod = (text) => {
+    if (!text || typeof text !== 'string') return '';
+    const firstPeriodIndex = text.indexOf('.');
+    return firstPeriodIndex !== -1 ? text.substring(0, firstPeriodIndex + 1) : text;
+  };
+
   // Preparar as linhas para o DataGrid
   const prepareRows = () => {
     const rows = [];
     
-    // Usar cisControls.controls conforme sua estrutura
     cisControls.controls.forEach(control => {
       // Adicionar controle principal
       const mainControlRow = {
@@ -84,10 +88,11 @@ export default function Cascade() {
                   color: 'rgba(255, 255, 255, 0.8)',
                   display: 'block',
                   mt: 0.5,
-                  fontSize: '0.75rem'
+                  fontSize: '0.75rem',
+                  fontStyle: 'italic'
                 }}
               >
-                {params.row.description}
+                {truncateAtFirstPeriod(params.row.description)}
               </Typography>
             )}
           </Box>
@@ -136,20 +141,6 @@ export default function Cascade() {
                 >
                   {params.row.id} - {params.value}
                 </Link>
-                {params.row.description && (
-                  <Typography 
-                    variant="caption" 
-                    sx={{ 
-                      color: 'text.secondary',
-                      display: 'block',
-                      mt: 0.5,
-                      fontSize: '0.75rem',
-                      wordBreak: 'break-word'
-                    }}
-                  >
-                    {params.row.description}
-                  </Typography>
-                )}
               </Box>
             )
           };
@@ -164,18 +155,19 @@ export default function Cascade() {
 
   const rows = prepareRows();
   
-  // Usar as colunas do cisControls
   const columns = [
-    ...cisControls.columns // Já inclui a coluna 'expand' e outras
+    ...cisControls.columns
   ];
 
   return (
-    <Paper sx={{ height: 500, width: '100%' }}>
+    <Paper sx={{ width: '100%', height: 'auto', minHeight: `${Math.max(rows.length * 60, 1150)}px`, overflowX: 'visible' }}>
       <DataGrid
         rows={rows}
         columns={columns}
-        initialState={{ pagination: { paginationModel } }}
-        pageSizeOptions={[10, 15]}
+        // Desativa completamente a paginação
+        pagination={false}
+        // Ajusta a altura automaticamente
+        autoHeight
         checkboxSelection
         disableColumnResize
         disableColumnMenu
@@ -183,18 +175,22 @@ export default function Cascade() {
           params.row.isMainControl ? 'main-control' : 'sub-control'
         }
         onRowClick={(params, event) => {
-          // Ignorar clique em células com links
           if (event.target.closest('button') || event.target.closest('a')) {
             return;
           }
           
-          // Se clicar em qualquer parte da linha do controle principal, navega
           if (params.row.isMainControl) {
             handleControlClick(params.row.id, true);
           }
         }}
         sx={{ 
           border: 0,
+          height: 'auto',
+          minHeight: '1150px',
+          // Esconde o footer da paginação
+          '& .MuiDataGrid-footerContainer': {
+            display: 'none',
+          },
           '& .MuiDataGrid-cell': {
             display: 'flex',
             alignItems: 'center',
@@ -212,10 +208,15 @@ export default function Cascade() {
           },
           '& .MuiDataGrid-virtualScroller': {
             overflow: 'visible !important',
+            minHeight: `${rows.length * 63}px`, // Altura baseada no número de linhas
           },
           '& .MuiDataGrid-row': {
             maxHeight: 'none !important',
             minHeight: 'auto !important',
+          },
+          '& .MuiDataGrid-main': {
+            overflow: 'visible !important',
+            height: 'auto !important',
           },
           // Estilos para controles principais
           '& .main-control': {
