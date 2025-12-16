@@ -61,7 +61,7 @@ const Cards = () => {
     <>
       <section className='cards grid'>
         <div className='cardBox'>
-          <Common title='Total Revenue' />
+          <Common title='Totala Revenue' />
           <div className='circle'>
             <div className='row'>
               <ReactApexChart options={data.options} series={data.series} type='radialBar' height={150} />

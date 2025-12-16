@@ -1,5 +1,4 @@
 import React from "react"
-import { ContrastOutlined } from "@mui/icons-material"
 
 const Head = ({ dark, setMode }) => {
   return (
@@ -14,9 +13,6 @@ const Head = ({ dark, setMode }) => {
           <div className='right flexCenter'>
             <div className='profile flexCenter'>
             </div>
-            <button onClick={() => setMode(!dark)}>
-              <ContrastOutlined className='iconHead' />
-            </button>
           </div>
         </div>
       </section>

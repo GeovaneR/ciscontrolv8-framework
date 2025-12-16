@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   Box,
@@ -31,6 +31,21 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import Texteditor from "../../texteditor/Texteditor";
 import { v4 as uuidv4 } from "uuid";
+
+// Função debounce
+const useDebounce = (callback, delay) => {
+  const timeoutRef = useRef(null);
+  
+  return (...args) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    timeoutRef.current = setTimeout(() => {
+      callback(...args);
+    }, delay);
+  };
+};
 
 const Detail = () => {
   const navigate = useNavigate();
@@ -76,6 +91,14 @@ const Detail = () => {
   const [historico, setHistorico] = useState([]);
   const [showHistorico, setShowHistorico] = useState(false);
 
+  // Referência para controlar mudanças
+  const previousValuesRef = useRef({
+    status: "",
+    agendamento: "",
+    data: null,
+    descricao: ""
+  });
+
   // Função para formatar data
   const formatarData = (dataStr) => {
     return dayjs(dataStr).format("DD/MM/YYYY HH:mm:ss");
@@ -92,68 +115,92 @@ const Detail = () => {
       setDescricao(saved.descricao || "");
       setArquivos(saved.arquivos || []);
       setHistorico(saved.historico || []);
+      
+      // Inicializar valores anteriores
+      previousValuesRef.current = {
+        status: saved.status || "",
+        agendamento: saved.agendamento || "",
+        data: saved.data || null,
+        descricao: saved.descricao || ""
+      };
     }
     setLoaded(true);
   }, [id, isMainControl]);
 
-  // Salvar automaticamente no localStorage
-  useEffect(() => {
+  // Função para salvar no localStorage
+  const saveToLocalStorage = useCallback(() => {
     if (!loaded) return;
 
     const storageKey = isMainControl ? `controle_${id}` : `topico_${id}`;
+    const dados = {
+      id,
+      isMainControl,
+      status,
+      agendamento,
+      data: data && data.isValid() ? data.toISOString() : null,
+      descricao,
+      arquivos,
+      historico: historico.slice(0, 50) // Limitar histórico salvo
+    };
 
-    // Verificar se houve mudanças significativas para registrar no histórico
-    const currentData = {
+    localStorage.setItem(storageKey, JSON.stringify(dados));
+  }, [id, isMainControl, status, agendamento, data, descricao, arquivos, historico, loaded]);
+
+  // Salvar automaticamente no localStorage com debounce
+  useEffect(() => {
+    const debouncedSave = setTimeout(() => {
+      saveToLocalStorage();
+    }, 1000); // Salva 1 segundo após a última alteração
+
+    return () => clearTimeout(debouncedSave);
+  }, [status, agendamento, data, descricao, arquivos, historico, saveToLocalStorage]);
+
+  // Monitorar mudanças de status, agendamento e data para histórico
+  useEffect(() => {
+    if (!loaded) return;
+
+    const currentValues = {
       status,
       agendamento,
       data: data && data.isValid() ? data.toISOString() : null,
       descricao
     };
 
-    const saved = JSON.parse(localStorage.getItem(storageKey));
-    const previousData = saved ? {
-      status: saved.status || "",
-      agendamento: saved.agendamento || "",
-      data: saved.data || null,
-      descricao: saved.descricao || ""
-    } : null;
+    const previousValues = previousValuesRef.current;
+    const alteracoes = [];
 
-    // Se houve mudanças, adicionar ao histórico
-    if (previousData && JSON.stringify(currentData) !== JSON.stringify(previousData)) {
+    // Verificar mudanças apenas em campos específicos (não incluir descricao)
+    if (previousValues.status !== currentValues.status && currentValues.status !== "") {
+      alteracoes.push(`Status alterado de "${previousValues.status}" para "${currentValues.status}"`);
+    }
+    
+    if (previousValues.agendamento !== currentValues.agendamento && currentValues.agendamento !== "") {
+      alteracoes.push(`Agendamento alterado de "${previousValues.agendamento}" para "${currentValues.agendamento}"`);
+    }
+    
+    // Para data, verificar se é uma data válida
+    if (previousValues.data !== currentValues.data && currentValues.data) {
+      alteracoes.push(`Data alterada para ${formatarData(currentValues.data)}`);
+    }
+
+    // Se houve alterações significativas, registrar no histórico
+    if (alteracoes.length > 0) {
       const novaEntrada = {
         id: uuidv4(),
         timestamp: new Date().toISOString(),
-        usuario: "Usuário Atual", // Você pode integrar com sistema de autenticação
-        alteracoes: [],
-        dadosAntigos: previousData,
-        dadosNovos: currentData
+        usuario: "Usuário Atual",
+        alteracoes
       };
 
-      // Detectar quais campos foram alterados
-      if (previousData.status !== currentData.status) {
-        novaEntrada.alteracoes.push(`Status alterado de "${previousData.status}" para "${currentData.status}"`);
-      }
-      if (previousData.agendamento !== currentData.agendamento) {
-        novaEntrada.alteracoes.push(`Agendamento alterado de "${previousData.agendamento}" para "${currentData.agendamento}"`);
-      }
-      if (previousData.descricao !== currentData.descricao) {
-        novaEntrada.alteracoes.push("Descrição/anotações alteradas");
-      }
-
-      // Adicionar ao histórico
       setHistorico(prev => [novaEntrada, ...prev.slice(0, 49)]); // Limitar a 50 entradas
+      
+      // Atualizar valores anteriores
+      previousValuesRef.current = {
+        ...currentValues,
+        descricao: previousValues.descricao // Manter a descrição anterior para não registrar alterações
+      };
     }
-
-    const dados = {
-      id,
-      isMainControl,
-      ...currentData,
-      arquivos,
-      historico: historico.slice(0, 50) // Limitar histórico salvo
-    };
-
-    localStorage.setItem(storageKey, JSON.stringify(dados));
-  }, [status, agendamento, data, descricao, id, loaded, isMainControl, arquivos, historico]);
+  }, [status, agendamento, data, loaded]);
 
   // Manipulação de arquivos
   const handleFileSelect = (event) => {
@@ -224,20 +271,18 @@ const Detail = () => {
     document.body.removeChild(link);
   };
 
+  // Handler para a descrição com debounce
+  const handleDescricaoChange = useDebounce((newDescricao) => {
+    // Atualizar apenas o valor sem registrar no histórico
+    setDescricao(newDescricao);
+    
+    // Atualizar o valor anterior para a descrição
+    previousValuesRef.current.descricao = newDescricao;
+  }, 1000);
+
   // Função de salvar manualmente
   const handleSave = () => {
-    const storageKey = isMainControl ? `controle_${id}` : `topico_${id}`;
-    const dados = {
-      id,
-      isMainControl,
-      status,
-      agendamento,
-      data: data && data.isValid() ? data.toISOString() : null,
-      descricao,
-      arquivos,
-      historico
-    };
-    localStorage.setItem(storageKey, JSON.stringify(dados));
+    saveToLocalStorage();
 
     // Registrar ação no histórico
     const novaEntrada = {
@@ -296,7 +341,9 @@ const Detail = () => {
             label="Status"
             items={["N/A", "Concluído", "Pendente", "Em Andamento"]}
             value={status}
-            onChange={(e) => setStatus(e.target?.value ?? e)}
+            onChange={(e) => {
+              setStatus(e.target?.value ?? e);
+            }}
           />
 
           <BasicSelect
@@ -304,7 +351,9 @@ const Detail = () => {
             label="Agendamento"
             items={["Mensal", "Trimestral", "Semestral", "Anual"]}
             value={agendamento}
-            onChange={(e) => setAgendamento(e.target?.value ?? e)}
+            onChange={(e) => {
+              setAgendamento(e.target?.value ?? e);
+            }}
           />
 
           <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -312,7 +361,9 @@ const Detail = () => {
               label="Data"
               format="DD/MM/YYYY"
               value={data}
-              onChange={(newValue) => setData(newValue)}
+              onChange={(newValue) => {
+                setData(newValue);
+              }}
             />
           </LocalizationProvider>
         </FormControl>
@@ -321,7 +372,6 @@ const Detail = () => {
       <Typography variant="h5" sx={{ fontWeight: "bold", mb: 1 }}>
         {item.id} - {item.title || item.name}
       </Typography>
-
 
       <Typography variant="body1" sx={{ color: "text.secondary", mb: 2 }}>
         {item.description}
@@ -374,12 +424,16 @@ const Detail = () => {
           ))}
         </Box>
       )}
+      
       {/* Seção de Anotações */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2 }}>
           Anotações
         </Typography>
-        <Texteditor descricao={descricao} setDescricao={setDescricao} />
+        <Texteditor 
+          descricao={descricao} 
+          setDescricao={handleDescricaoChange}
+        />
       </Box>
 
       {/* Seção de Upload de Arquivos */}
@@ -462,7 +516,6 @@ const Detail = () => {
           )}
         </Paper>
       </Box>
-
 
       {/* Dialog do Histórico */}
       <Dialog
